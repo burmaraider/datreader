@@ -83,7 +83,7 @@ namespace AVP2.DAT.Reader
                     var tempDataLength = BitConverter.ToInt16(temp, 0);
                     var tempStringLength = BitConverter.ToInt16(temp, 2);
 
-                    richTextBox1.Text += "\n\n\n Object Count: " + tempLength.ToString() + "\n First Object data Length: " + tempDataLength.ToString() + "\n String Length: " + tempStringLength.ToString();
+                    richTextBox1.Text += "\n\n\n Object Count: " + tempLength.ToString();
 
                     int position = 0;
 

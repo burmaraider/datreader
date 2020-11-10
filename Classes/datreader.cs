@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using AVP2.DAT.Reader.Classes;
 using System.Runtime.CompilerServices;
+using System.Windows.Forms;
+using static LTTypes.LTTypes;
 
 public class datreader
 {
@@ -32,6 +34,7 @@ public class datreader
         World.WorldObjects temp = new World.WorldObjects();
         temp.obj = new List<World.WorldObject>();
         int tempDataLength;
+        byte propertyType;
 
         byte[] tempByte = new byte[4];
 
@@ -60,7 +63,6 @@ public class datreader
             obj.dataLength = dataLength;
             obj.objectType = System.Text.Encoding.ASCII.GetString(tempByte);
 
-            obj.data = new List<byte[]>();
 
             //Read how many entries this object has
             file.Read(tempByte, 0, 4);
@@ -72,76 +74,96 @@ public class datreader
             {
                 tempDataLength = ReadDataLength(ref file);
 
-                Array.Resize(ref tempByte, tempDataLength);
+                //Read the property name
+                string tempKey = ReadString(ref file, tempDataLength);
 
-                file.Read(tempByte, 0, tempDataLength);
+                //Read the Property Type
+                propertyType = ReadPropertyType(ref file);
 
-                string tempKey = System.Text.Encoding.ASCII.GetString(tempByte);
-
-                Array.Resize(ref tempByte, 1);
-
-                //Read what type of object data this is
-                file.Read(tempByte, 0, 1);
-
-
-
-                switch (tempByte[0])
+                switch (propertyType)
                 {
-                    case (byte)LTTypes.PropType.PT_STRING:
-                        obj.objectType = "String";
+                    case (byte)PropType.PT_STRING:
                         file.Position += 6;
-
                         //Get Data Length
                         tempDataLength = ReadDataLength(ref file);
-
-                        Array.Resize(ref tempByte, tempDataLength);
-                        file.Read(tempByte, 0, tempDataLength);
-
-                        string tempValue = System.Text.Encoding.ASCII.GetString(tempByte);
-
-                        tempData.Add(tempKey, tempValue);
-
+                        //Read the string
+                        tempData.Add(tempKey, ReadString(ref file, tempDataLength));
                         break;
 
-                    case (byte)LTTypes.PropType.PT_VECTOR:
-                        obj.objectType = "Vector";
+                    case (byte)PropType.PT_VECTOR:
                         //Skip ahead
                         //Dont care about prop flags..YET?
                         file.Position += 4;
-
+                        //Get our data length
                         tempDataLength = ReadDataLength(ref file);
-
-                        //resize to fit float X Y Z
-                        Array.Resize(ref tempByte, tempDataLength);
-                        file.Read(tempByte, 0, tempDataLength);
-
-                        float x, y, z;
-
-                        x = BitConverter.ToSingle(tempByte, 0);
-                        y = BitConverter.ToSingle(tempByte, sizeof(Single));
-                        z = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single));
-
-                        LTTypes.LTVector tempVec = new LTTypes.LTVector(new LTTypes.LTFloat(x), new LTTypes.LTFloat(y), new LTTypes.LTFloat(z));
-
+                        //Get our float data
+                        LTVector tempVec = ReadLTVector(ref file);
+                        //Add our object to the Dictionary
                         tempData.Add(tempKey, tempVec);
-
                         break;
 
-                    case (byte)LTTypes.PropType.PT_ROTATION:
-                        obj.objectType = "Rotation";
-
-
+                    case (byte)PropType.PT_ROTATION:
+                        //Skip ahead
+                        //Dont care about prop flags..YET?
+                        file.Position += 4;
+                        //Get our data length
+                        tempDataLength = ReadDataLength(ref file);
+                        //Get our float data
+                        LTRotation tempRot = ReadLTRotation(ref file);
+                        //Add our object to the Dictionary
+                        tempData.Add(tempKey, tempRot);
+                        break;
+                    case (byte)PropType.PT_LONGINT:
+                        //Skip ahead
+                        //Dont care about prop flags..YET?
+                        file.Position += 2;
+                        //Get our data length
+                        //tempDataLength = ReadDataLength(ref file);
+                        //Get our float data
+                        Int64 longInt = ReadLongInt(ref file);
+                        //Add our object to the Dictionary
+                        tempData.Add(tempKey, longInt);
+                        break;
+                    case (byte)PropType.PT_BOOL:
+                        //Skip ahead
+                        //Dont care about prop flags..YET?
+                        file.Position += 6;
+                        //Add our object to the Dictionary
+                        tempData.Add(tempKey, ReadBool(ref file));
+                        break;
+                    case (byte)PropType.PT_REAL:
+                        //Skip ahead
+                        //Dont care about prop flags..YET?
+                        file.Position += 4;
+                        //Get our data length
+                        tempDataLength = ReadDataLength(ref file);
+                        //Add our object to the Dictionary
+                        tempData.Add(tempKey, ReadReal(ref file));
+                        break;
+                    case (byte)PropType.PT_COLOR:
+                        //Skip ahead
+                        //Dont care about prop flags..YET?
+                        file.Position += 4;
+                        //Get our data length
+                        tempDataLength = ReadDataLength(ref file);
+                        //Get our float data
+                        LTVector tempCol = ReadLTVector(ref file);
+                        //Add our object to the Dictionary
+                        tempData.Add(tempKey, tempCol);
                         break;
                 }
             }
 
+            obj.options = tempData;
+
             temp.obj.Add(obj);
         }
+
         temp.endingOffset = (int)file.Position;
         return temp;
     }
 
-    /// <summary>
+    /// <summary >
     /// Get the data length for the property of the Lithtech Object
     /// </summary>
     /// <param name="file"></param>
@@ -154,4 +176,117 @@ public class datreader
         return BitConverter.ToInt16(tempByte, 0);
     }
 
+    /// <summary>
+    /// Get the object transform X, Y, Z of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <seealso cref="LTVector">See here</seealso>
+    /// <returns></returns>
+    private static LTVector ReadLTVector(ref FileStream file)
+    {
+        //Read data length 12 bytes
+        //x - single
+        //y - single
+        //z - single
+        byte[] tempByte = new byte[12];
+        file.Read(tempByte, 0, 12);
+
+        float x, y, z;
+
+        x = BitConverter.ToSingle(tempByte, 0);
+        y = BitConverter.ToSingle(tempByte, sizeof(Single));
+        z = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single));
+
+        return new LTVector(new LTFloat(x), new LTFloat(y), new LTFloat(z));
+    }
+
+    /// <summary>
+    /// Get the object Rotation X, Y, Z, W of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    private static LTRotation ReadLTRotation(ref FileStream file)
+    {
+        //Read data length 12 bytes
+        //x - single
+        //y - single
+        //z - single
+        //w - single
+        byte[] tempByte = new byte[16];
+        file.Read(tempByte, 0, 16);
+
+        float x, y, z, w;
+
+        x = BitConverter.ToSingle(tempByte, 0);
+        y = BitConverter.ToSingle(tempByte, sizeof(Single));
+        z = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single));
+        w = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single) + sizeof(Single));
+
+        return new LTRotation(new LTFloat(x), new LTFloat(y), new LTFloat(z), new LTFloat(w));
+    }
+
+    /// <summary>
+    /// Get the objects string, either name or paramters (ie: trigger message) of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <param name="stringLength"></param>
+    /// <returns></returns>
+    private static string ReadString(ref FileStream file, int stringLength)
+    {
+        //Read the string
+        byte[] tempByte = new byte[stringLength];
+        file.Read(tempByte, 0, tempByte.Length);
+        return System.Text.Encoding.ASCII.GetString(tempByte);
+    }
+
+    /// <summary>
+    /// Get the objects property type of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    private static byte ReadPropertyType(ref FileStream file)
+    {
+        //Read the string
+        byte[] tempByte = new byte[1];
+        file.Read(tempByte, 0, tempByte.Length);
+        return tempByte[0];
+    }
+
+    /// <summary>
+    /// Get the LongInt used in AllowedGameTypes of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    private static Int64 ReadLongInt(ref FileStream file)
+    {
+        //Read the string
+        byte[] tempByte = new byte[8];
+        file.Read(tempByte, 0, tempByte.Length);
+        return BitConverter.ToInt64(tempByte, 0);
+    }
+
+    /// <summary>
+    /// Get the true or false flag from the property of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    private static bool ReadBool(ref FileStream file)
+    {
+        //Read the string
+        byte[] tempByte = new byte[1];
+        file.Read(tempByte, 0, tempByte.Length);
+        return BitConverter.ToBoolean(tempByte, 0);
+    }
+    /// <summary>
+    /// Get the Real used in single float values of the Lithtech Object
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns>description</returns>
+    private static float ReadReal(ref FileStream file)
+    {
+        //Read the string
+        byte[] tempByte = new byte[4];
+        file.Read(tempByte, 0, tempByte.Length);
+        return BitConverter.ToSingle(tempByte, 0);
+    }
 }
