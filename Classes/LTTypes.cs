@@ -9,40 +9,6 @@ namespace LTTypes
 {
     public class LTTypes
     {
-        /*
-         * type
-      LTFloat = Single;
-      LTVector = record
-        x: LTFloat;
-        y: LTFloat;
-        z: LTFloat;
-      end;
-
-      LTRotation = record
-        x: LTFloat;
-        y: LTFloat;
-        z: LTFloat;
-        w: LTFloat;
-      end;
-
-      TUVPair = record
-        a: LTFloat;
-        b: LTFloat;
-      end;
-
-      PLTVector = ^LTVector;
-      PLTRotation = ^LTRotation;
-      PLTFloat = ^LTFloat;
-      PUVPair = ^TUVPair;
-
-      TLTUnknownStruct1 = record
-        vVec1: LTVector;
-        vVec2: LTVector;
-        nWord1: Word;
-      end;*/
-
-
-
         public enum PropType
         {
             PT_STRING = 0,
@@ -86,23 +52,23 @@ namespace LTTypes
             public LTFloat Y { get; set; }
             public LTFloat Z { get; set; }
 
-            public bool Equals(LTVector other)
-                => (X.I, Y.I, Z.I) == (other.X.I, other.Y.I, other.Z.I);
+            public bool Equals(LTVector other) => (X.I, Y.I, Z.I) == (other.X.I, other.Y.I, other.Z.I);
 
-            public override bool Equals(object obj)
-                => (obj is LTVector vector) && Equals(vector);
+            public override bool Equals(object obj) => (obj is LTVector vector) && Equals(vector);
 
-            public static bool operator == (LTVector left, LTVector right) 
-                =>Equals(left, right);
+            public static bool operator == (LTVector left, LTVector right) =>Equals(left, right);
 
-            public static bool operator !=(LTVector left, LTVector right) =>
-                !Equals(left, right);
+            public static bool operator !=(LTVector left, LTVector right) =>!Equals(left, right);
 
-            public override int GetHashCode()
-                => (X, Y, Z).GetHashCode();
+            public override int GetHashCode() => (X, Y, Z).GetHashCode();
 
+            public override string ToString() => $"X: {X} Y: {Y} Z: {Z}";
         }
-        public struct LTRotation
+
+        /// <summary>
+        /// Return type of X Y Z W floats
+        /// </summary>
+        public struct LTRotation: IEquatable<LTRotation>
         {
             public LTRotation(LTFloat x, LTFloat y, LTFloat z, LTFloat w)
             {
@@ -115,6 +81,18 @@ namespace LTTypes
             public LTFloat Y { get; set; }
             public LTFloat Z { get; set; }
             public LTFloat W { get; set; }
+
+            public bool Equals(LTRotation other) => (X.I, Y.I, Z.I, W.I) == (other.X.I, other.Y.I, other.Z.I, other.W.I);
+
+            public override bool Equals(object obj) => (obj is LTRotation rot) && Equals(rot);
+
+            public static bool operator ==(LTRotation left, LTRotation right) => Equals(left, right);
+
+            public static bool operator !=(LTRotation left, LTRotation right) => !Equals(left, right);
+
+            public override int GetHashCode() => (X, Y, Z, W).GetHashCode();
+
+            public override string ToString() => $"X: {X} Y: {Y} Z: {Z} W: {W}";
         }
 
         public struct TUVPair

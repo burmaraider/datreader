@@ -17,7 +17,7 @@ public class datreader
     public string fileNameOpened;
     //public LTTypes.LTVector test = new LTTypes.LTVector(new LTTypes.LTFloat(2.35352f), new LTTypes.LTFloat(2.0f), new LTTypes.LTFloat(4.0f));
     public static WorldExtents worldExtents;
-    public static WorldTreeNode nodeTree;
+    public static WorldTreeNode m_pRootNode;
     public static WorldTree worldTree;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -49,22 +49,10 @@ public class datreader
 
     public class WorldTreeNode
     {
-        public WorldTreeNode()
+        public WorldTreeNode(List<object> nodeList)
         {
-            nChildren = 9;
+            pNodeList = nodeList;
         }
-
-        public WorldTreeNode (LTVector a, LTVector b, LTFloat c, LTFloat d, LTFloat e, WorldTreeNode f, Int32 g, WorldTreeNode h)
-        {
-            vBBoxMin = a;
-            vBBoxMax = b;
-            fCenterX = c;
-            fCenterZ = d;
-            fSmallestDim = e;
-            pParent = f;
-            nChildren = g;
-            pNodeList = h;
-    }
 
         public LTVector vBBoxMin { get; set; }
         public LTVector vBBoxMax { get; set; }
@@ -73,9 +61,9 @@ public class datreader
         public LTFloat fSmallestDim { get; set; }
         public WorldTreeNode pParent { get; set; }
         public Int32 nChildren { get; set; }
-        public WorldTreeNode pNodeList { get; set; }
+        public List<object> pNodeList { get; set; }
 
-    public void SetBB(LTVector a, LTVector b)
+        public void SetBB(LTVector a, LTVector b)
         {
             vBBoxMin = a;
             vBBoxMax = b;
@@ -83,34 +71,61 @@ public class datreader
             fCenterX = (LTFloat)((LTFloat)(b.X + a.X) * 0.5f);
             fCenterZ = (LTFloat)((LTFloat)(b.Z + a.Z) * 0.5f);
             fSmallestDim = (LTFloat)Math.Min(b.X - a.X, b.Z - a.Z);
-
-        
         }
 
-        /*
-         * m_vBBoxMin: LTVector;
-    m_vBBoxMax: LTVector;
-    m_fCenterX: LTFloat;
-    m_fCenterZ: LTFloat;
-    m_fSmallestDim: LTFloat;
-    m_pParent: TLTWorldTreeNode;
-    m_nChildren: Cardinal;
-    m_pNodeList: TFPObjectList; */
     }
 
-    public struct WorldTree
+    public class WorldTree
     {
         public Int32 nNumNode { get; set; }
         public WorldTreeNode pRootNode { get; set; }
-        public List<WorldTreeNode> pNodes { get; set; }
+        public List<object> pNodes { get; set; }
 
+        public WorldTree()
+        {
+            pNodes = new List<object>();
+            pRootNode = new WorldTreeNode(pNodes);
+        }
+
+        public WorldTreeNode ReadWorldTree(FileStream file)
+        {
+            int nDummyTerrainDepth, nCurOffset, i;
+            LTVector vBoxMin, vBoxMax;
+            byte nCurByte, nCurBit;
+            WorldTreeNode pNewNode;
+
+            nDummyTerrainDepth = 0;
+            vBoxMin = ReadLTVector(ref file);
+            vBoxMax = ReadLTVector(ref file);
+
+            nNumNode = ReadInt(ref file);
+            nDummyTerrainDepth = ReadInt(ref file);
+
+            if (nNumNode > 1)
+            {
+                for (int t = 0; t < nNumNode - 2; t++)
+                {
+                    pNewNode = new WorldTreeNode(pNodes);
+                    pNodes.Add(pNewNode);
+                }
+            }
+
+            nCurByte = 0;
+            nCurBit = 8;
+
+            pRootNode.SetBB(vBoxMin, vBoxMax);
+
+            nCurOffset = 0;
+
+            return new WorldTreeNode(pNodes);
+        }
 
     }
 
-    public static World.WorldObjects ReadObjects(FileStream file, int objectCount, int lastPosition)
+    public static WorldObjects ReadObjects(FileStream file, int objectCount, int lastPosition)
     {
-        World.WorldObjects temp = new World.WorldObjects();
-        temp.obj = new List<World.WorldObject>();
+        WorldObjects temp = new WorldObjects();
+        temp.obj = new List<WorldObject>();
         int tempDataLength;
         byte propertyType;
 
@@ -121,7 +136,7 @@ public class datreader
         for (int i = 0; i < objectCount; i++)
         {
             //Make a new object to store this info
-            World.WorldObject obj = new World.WorldObject();
+            WorldObject obj = new WorldObject();
 
             //Make a dictionary to make things easier
             Dictionary<string, object> tempData = new Dictionary<string, object>();
@@ -148,7 +163,6 @@ public class datreader
             file.Read(tempByte, 0, 4);
             obj.objectEntries = BitConverter.ToInt16(tempByte, 0);
 
-            //Array.Resize(ref tempByte, 4);
 
             for (int t = 0; t < obj.objectEntries; t++)
             {
@@ -263,46 +277,7 @@ public class datreader
     }
 
 
-    public static WorldTreeNode ReadWorldNodeTree(FileStream file)
-    {
-        int nDummyTerrainDepth, nCurOffset, i;
-        LTVector vBoxMin, vBoxMax;
-        byte nCurByte, nCurBit;
-        WorldTreeNode pNewNode;
-
-        nDummyTerrainDepth = 0;
-        vBoxMin = ReadLTVector(ref file);
-        vBoxMax = ReadLTVector(ref file);
-
-        worldTree.nNumNode = ReadInt(ref file);
-        nDummyTerrainDepth = ReadInt(ref file);
-
-        if(worldTree.nNumNode > 1)
-        {
-            worldTree.pNodes = new List<WorldTreeNode>();
-            for (int t = 0; t < worldTree.nNumNode -2; t++)
-            {
-                /*
-                 * begin
-                    pNewNode := TLTWorldTreeNode.Create(m_pNodes);
-                    m_pNodes.Add(pNewNode);
-                   end;  */
-
-                pNewNode = new WorldTreeNode();
-                
-                worldTree.pNodes.Add(pNewNode);
-            }
-        }
-
-        nCurByte = 0;
-        nCurBit = 8;
-
-        nodeTree = new WorldTreeNode();
-        nodeTree.SetBB(vBoxMin, vBoxMax);
-
-
-        return new WorldTreeNode();
-    }
+    
 
 
     /// <summary >

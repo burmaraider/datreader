@@ -21,7 +21,7 @@ namespace AVP2.DAT.Reader
         public datreader.DATHeader header;
         byte[] bufferFile;
 
-        public World.WorldObjects worldObjectList;
+        public WorldObjects worldObjectList;
         public datreader.WorldExtents worldExtents;
         public datreader.WorldTreeNode worldNodeTree;
         public Form1()
@@ -44,7 +44,7 @@ namespace AVP2.DAT.Reader
             var items = new ListViewItem[worldObjectList.obj.Count()];
 
             int i = 0;
-            foreach (World.WorldObject t in worldObjectList.obj)
+            foreach (WorldObject t in worldObjectList.obj)
             {
                 items[i] = new ListViewItem(t.options["Name"].ToString());
                 items[i].SubItems.Add(t.objectType.ToString());
@@ -114,7 +114,6 @@ namespace AVP2.DAT.Reader
             dataGroupBox.Text = (string)worldObjectList.obj[e.ItemIndex].options["Name"];
 
             //Add some items to the panel
-
             foreach(KeyValuePair<string, object> temp in worldObjectList.obj[e.ItemIndex].options)
             {
                 Point tempLocation;
@@ -128,7 +127,6 @@ namespace AVP2.DAT.Reader
                 //Create base label
                 Label tempLabel = new Label { Text = temp.Key.ToString() };
                 tempLabel.Location = tempLocation;
-                //tempLabel.Width = tempLabel.Text.Length * 2;
 
                 
                 if (temp.Value is LTVector && temp.Key.Contains("Color"))
@@ -244,8 +242,6 @@ namespace AVP2.DAT.Reader
                     tempByte = BitConverter.GetBytes(vectorItem);
                     float tempFloat = BitConverter.ToSingle(tempByte, sizeof(Int64)-4);
 
-                    if (vectorItem == -4647714815446089728)
-                        vectorItem = -1;
                     TextBox xFloat = new TextBox { Text = tempFloat.ToString(), Width = 50 };
                     xFloat.Location = new Point(tempLocation.X + 20 + tempLabel.Width, tempLocation.Y);
 
@@ -331,7 +327,13 @@ namespace AVP2.DAT.Reader
 
                     //Read World Extents
                     worldExtents = datreader.ReadWorldExtents(fs, (int)fs.Position);
-                    worldNodeTree = datreader.ReadWorldNodeTree(fs);
+
+                    //if(header.nVersion != 50 || header.nVersion != 56)
+                    datreader.WorldTree worldTree = new datreader.WorldTree();
+
+                    //worldTree.ReadWorldTree(fs);
+                    worldNodeTree = worldTree.ReadWorldTree(fs);
+                        //worldNodeTree = datreader.worldTree.ReadWorldTree(fs);
 
                     //Read objects
                     fs.Position = header.ObjectDataPos;
