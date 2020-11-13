@@ -9,11 +9,13 @@ namespace AVP2.DAT.Reader.Classes
 {
     public static class World
     {
+
         public struct WorldObjects
         {
             public List<WorldObject> obj { get; set; }
             public int endingOffset { get; set; }
 
+           
         }
 
         public struct WorldObject
@@ -22,13 +24,8 @@ namespace AVP2.DAT.Reader.Classes
             public string objectType { get; set; }
             public Int16 dataLength { get; set; }
             public Int32 dataOffset { get; set; }
-
-            public string name { get; set; }
             public Int32 objectEntries { get; set; }
 
-            public LTRotation rotation { get; set; }
-
-            public LTVector position { get; set; }
         }
     }
 }

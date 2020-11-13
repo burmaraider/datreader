@@ -11,10 +11,14 @@ using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using static LTTypes.LTTypes;
 
+
 public class datreader
 {
     public string fileNameOpened;
     //public LTTypes.LTVector test = new LTTypes.LTVector(new LTTypes.LTFloat(2.35352f), new LTTypes.LTFloat(2.0f), new LTTypes.LTFloat(4.0f));
+    public static WorldExtents worldExtents;
+    public static WorldTreeNode nodeTree;
+    public static WorldTree worldTree;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct DATHeader
@@ -27,6 +31,80 @@ public class datreader
         public readonly int RenderDataPos;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
         public readonly byte[] unk1;
+    }
+
+    public struct WorldExtents
+    {
+        public WorldExtents(int i, LTVector o, LTVector p)
+        {
+            unk = i;
+            vExtentsMin = o;
+            vExtentsMax = p;
+        }
+
+        public int unk;
+        public LTVector vExtentsMin;
+        public LTVector vExtentsMax;
+    }
+
+    public class WorldTreeNode
+    {
+        public WorldTreeNode()
+        {
+            nChildren = 9;
+        }
+
+        public WorldTreeNode (LTVector a, LTVector b, LTFloat c, LTFloat d, LTFloat e, WorldTreeNode f, Int32 g, WorldTreeNode h)
+        {
+            vBBoxMin = a;
+            vBBoxMax = b;
+            fCenterX = c;
+            fCenterZ = d;
+            fSmallestDim = e;
+            pParent = f;
+            nChildren = g;
+            pNodeList = h;
+    }
+
+        public LTVector vBBoxMin { get; set; }
+        public LTVector vBBoxMax { get; set; }
+        public LTFloat fCenterX { get; set; }
+        public LTFloat fCenterZ { get; set; }
+        public LTFloat fSmallestDim { get; set; }
+        public WorldTreeNode pParent { get; set; }
+        public Int32 nChildren { get; set; }
+        public WorldTreeNode pNodeList { get; set; }
+
+    public void SetBB(LTVector a, LTVector b)
+        {
+            vBBoxMin = a;
+            vBBoxMax = b;
+
+            fCenterX = (LTFloat)((LTFloat)(b.X + a.X) * 0.5f);
+            fCenterZ = (LTFloat)((LTFloat)(b.Z + a.Z) * 0.5f);
+            fSmallestDim = (LTFloat)Math.Min(b.X - a.X, b.Z - a.Z);
+
+        
+        }
+
+        /*
+         * m_vBBoxMin: LTVector;
+    m_vBBoxMax: LTVector;
+    m_fCenterX: LTFloat;
+    m_fCenterZ: LTFloat;
+    m_fSmallestDim: LTFloat;
+    m_pParent: TLTWorldTreeNode;
+    m_nChildren: Cardinal;
+    m_pNodeList: TFPObjectList; */
+    }
+
+    public struct WorldTree
+    {
+        public Int32 nNumNode { get; set; }
+        public WorldTreeNode pRootNode { get; set; }
+        public List<WorldTreeNode> pNodes { get; set; }
+
+
     }
 
     public static World.WorldObjects ReadObjects(FileStream file, int objectCount, int lastPosition)
@@ -47,7 +125,7 @@ public class datreader
 
             //Make a dictionary to make things easier
             Dictionary<string, object> tempData = new Dictionary<string, object>();
-
+            obj.dataOffset = (int)file.Position;
             file.Read(tempByte, 0, sizeof(Int32));
             var dataLength = BitConverter.ToInt16(tempByte, 0);
 
@@ -55,15 +133,17 @@ public class datreader
             var currentPos = (int)file.Position;
             //Calculate our end position
             int endPos = (currentPos + (int)dataLength) - 2;
+            
 
             var lengthOfString = BitConverter.ToInt16(tempByte, 2);
             Array.Resize(ref tempByte, lengthOfString);
             file.Read(tempByte, 0, lengthOfString);
 
             obj.dataLength = dataLength;
+
             obj.objectType = System.Text.Encoding.ASCII.GetString(tempByte);
 
-
+            Array.Resize(ref tempByte, 4);
             //Read how many entries this object has
             file.Read(tempByte, 0, 4);
             obj.objectEntries = BitConverter.ToInt16(tempByte, 0);
@@ -72,6 +152,7 @@ public class datreader
 
             for (int t = 0; t < obj.objectEntries; t++)
             {
+                
                 tempDataLength = ReadDataLength(ref file);
 
                 //Read the property name
@@ -162,6 +243,67 @@ public class datreader
         temp.endingOffset = (int)file.Position;
         return temp;
     }
+
+    /// <summary>
+    /// Read the World Extents from the .DAT file
+    /// </summary>
+    /// <param name="file"></param>
+    /// <param name="lastPosition"></param>
+    /// <returns></returns>
+    public static WorldExtents ReadWorldExtents(FileStream file, int lastPosition)
+    {
+        int tempunk = ReadInt(ref file);
+        LTVector temp1 = ReadLTVector(ref file);
+        LTVector temp2 = ReadLTVector(ref file);
+
+        worldExtents = new WorldExtents(tempunk, temp1, temp2);
+
+        return worldExtents;
+
+    }
+
+
+    public static WorldTreeNode ReadWorldNodeTree(FileStream file)
+    {
+        int nDummyTerrainDepth, nCurOffset, i;
+        LTVector vBoxMin, vBoxMax;
+        byte nCurByte, nCurBit;
+        WorldTreeNode pNewNode;
+
+        nDummyTerrainDepth = 0;
+        vBoxMin = ReadLTVector(ref file);
+        vBoxMax = ReadLTVector(ref file);
+
+        worldTree.nNumNode = ReadInt(ref file);
+        nDummyTerrainDepth = ReadInt(ref file);
+
+        if(worldTree.nNumNode > 1)
+        {
+            worldTree.pNodes = new List<WorldTreeNode>();
+            for (int t = 0; t < worldTree.nNumNode -2; t++)
+            {
+                /*
+                 * begin
+                    pNewNode := TLTWorldTreeNode.Create(m_pNodes);
+                    m_pNodes.Add(pNewNode);
+                   end;  */
+
+                pNewNode = new WorldTreeNode();
+                
+                worldTree.pNodes.Add(pNewNode);
+            }
+        }
+
+        nCurByte = 0;
+        nCurBit = 8;
+
+        nodeTree = new WorldTreeNode();
+        nodeTree.SetBB(vBoxMin, vBoxMax);
+
+
+        return new WorldTreeNode();
+    }
+
 
     /// <summary >
     /// Get the data length for the property of the Lithtech Object
@@ -288,5 +430,18 @@ public class datreader
         byte[] tempByte = new byte[4];
         file.Read(tempByte, 0, tempByte.Length);
         return BitConverter.ToSingle(tempByte, 0);
+    }
+
+    /// <summary>
+    /// Get the integer in the bitstream
+    /// </summary>
+    /// <param name="file"></param>
+    /// <returns></returns>
+    private static int ReadInt(ref FileStream file)
+    {
+        //Read the int
+        byte[] tempByte = new byte[4];
+        file.Read(tempByte, 0, tempByte.Length);
+        return BitConverter.ToInt32(tempByte, 0);
     }
 }
