@@ -326,14 +326,16 @@ namespace AVP2.DAT.Reader
                     }
 
                     //Read World Extents
-                    worldExtents = datreader.ReadWorldExtents(fs, (int)fs.Position);
+                    worldExtents = datreader.ReadWorldExtents(ref fs, (int)fs.Position);
 
                     //if(header.nVersion != 50 || header.nVersion != 56)
                     datreader.WorldTree worldTree = new datreader.WorldTree();
 
                     //worldTree.ReadWorldTree(fs);
-                    worldNodeTree = worldTree.ReadWorldTree(fs);
-                        //worldNodeTree = datreader.worldTree.ReadWorldTree(fs);
+                    worldNodeTree = worldTree.ReadWorldTree(ref fs);
+                    //worldNodeTree = datreader.worldTree.ReadWorldTree(fs);
+
+                    //datreader.SkipWorldTree(ref fs);
 
                     //Read objects
                     fs.Position = header.ObjectDataPos;

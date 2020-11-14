@@ -49,9 +49,13 @@ public class datreader
 
     public class WorldTreeNode
     {
-        public WorldTreeNode(List<object> nodeList)
+        public WorldTreeNode(List<WorldTreeNode> nodeList)
         {
             pNodeList = nodeList;
+        }
+
+        public WorldTreeNode()
+        {
         }
 
         public LTVector vBBoxMin { get; set; }
@@ -61,7 +65,7 @@ public class datreader
         public LTFloat fSmallestDim { get; set; }
         public WorldTreeNode pParent { get; set; }
         public Int32 nChildren { get; set; }
-        public List<object> pNodeList { get; set; }
+        public List<WorldTreeNode> pNodeList { get; set; }
 
         public void SetBB(LTVector a, LTVector b)
         {
@@ -73,21 +77,86 @@ public class datreader
             fSmallestDim = (LTFloat)Math.Min(b.X - a.X, b.Z - a.Z);
         }
 
+        public WorldTreeNode GetChild(int nX, int nZ)
+        {
+            return pNodeList[nChildren + (nX * 2 + nZ)];
+        }
+
+        public WorldTreeNode GetChild(int nNode)
+        {
+            return pNodeList[nChildren + nNode];
+        }
+
+        public void Subdivide(ref List<WorldTreeNode> pNodeList, ref Int32 nCurOffset)
+        {
+            LTVector vMin, vMax;
+
+            nChildren = nCurOffset;
+            nCurOffset = nCurOffset + 4;
+
+            for(int i = 0; i < 4 ; i++)
+            {
+                GetChild(i).pParent = this;
+            }
+
+            vMin = new LTVector(vBBoxMin.X, vBBoxMin.Y, vBBoxMin.Z);
+            vMax = new LTVector(fCenterX, vBBoxMax.Y, fCenterZ);
+            GetChild(0, 0).SetBB(vMin, vMax);
+
+            vMin = new LTVector(vBBoxMin.X, vBBoxMin.Y, fCenterZ);
+            vMax = new LTVector(fCenterX, vBBoxMax.Y, vBBoxMax.Z);
+            GetChild(0, 1).SetBB(vMin, vMax);
+
+            vMin = new LTVector(fCenterX, vBBoxMin.Y, vBBoxMin.Z);
+            vMax = new LTVector(vBBoxMax.X, vBBoxMax.Y, fCenterZ);
+            GetChild(1, 0).SetBB(vMin, vMax);
+
+            vMin = new LTVector(fCenterX, vBBoxMin.Y, fCenterZ);
+            vMax = new LTVector(vBBoxMax.X, vBBoxMax.Y, fCenterZ);
+            GetChild(1, 1).SetBB(vMin, vMax);
+
+
+        }
+       public void LoadLayout(ref FileStream file, ref byte nCurByte, ref byte nCurBit, List<WorldTreeNode> pNodeList, ref Int32 nCurOffset)
+        {
+            bool bSubdivide;
+
+            if(nCurBit == 8)
+            {
+                nCurByte = (byte)file.ReadByte();
+                nCurBit = 0;
+            }
+
+            bSubdivide = (nCurByte & (1 << nCurBit)) > 0;
+            nCurBit++;
+
+            if(bSubdivide)
+            {
+                Subdivide(ref pNodeList, ref nCurOffset);
+
+                for(int i = 0; 0 < 4; i++)
+                {
+                    GetChild(i).LoadLayout(ref file, ref nCurByte, ref nCurBit, pNodeList, ref nCurOffset);
+                }
+            }
+        }
+
+
     }
 
     public class WorldTree
     {
         public Int32 nNumNode { get; set; }
         public WorldTreeNode pRootNode { get; set; }
-        public List<object> pNodes { get; set; }
+        public List<WorldTreeNode> pNodes { get; set; }
 
         public WorldTree()
         {
-            pNodes = new List<object>();
+            pNodes = new List<WorldTreeNode>();
             pRootNode = new WorldTreeNode(pNodes);
         }
 
-        public WorldTreeNode ReadWorldTree(FileStream file)
+        public WorldTreeNode ReadWorldTree(ref FileStream file)
         {
             int nDummyTerrainDepth, nCurOffset, i;
             LTVector vBoxMin, vBoxMax;
@@ -101,12 +170,22 @@ public class datreader
             nNumNode = ReadInt(ref file);
             nDummyTerrainDepth = ReadInt(ref file);
 
+            i = 0;
+
             if (nNumNode > 1)
             {
-                for (int t = 0; t < nNumNode - 2; t++)
+                /*
+                for (int i = 0; i < nNumNode - 2; i++)
                 {
                     pNewNode = new WorldTreeNode(pNodes);
                     pNodes.Add(pNewNode);
+                }
+                */
+                while(i != nNumNode)
+                {
+                    pNewNode = new WorldTreeNode(pNodes);
+                    pNodes.Add(pNewNode);
+                    i++;
                 }
             }
 
@@ -117,9 +196,58 @@ public class datreader
 
             nCurOffset = 0;
 
+            pRootNode.LoadLayout(ref file, ref nCurByte, ref nCurBit, pNodes, ref nCurOffset);
+
             return new WorldTreeNode(pNodes);
         }
 
+    }
+
+    public static void SkipWorldTree (ref FileStream file)
+    {
+        //Lets skip the world tree 
+        bool escape = false;
+        byte tempByte;
+        byte lastTempByte = 0;
+        bool firstIteration = true;
+
+
+        int nDummyTerrainDepth;
+        LTVector vBoxMin, vBoxMax;
+
+
+        nDummyTerrainDepth = 0;
+        vBoxMin = ReadLTVector(ref file);
+        vBoxMax = ReadLTVector(ref file);
+
+        int nNumNode = ReadInt(ref file);
+        nDummyTerrainDepth = ReadInt(ref file);
+
+        if (nNumNode > 1)
+        {
+            while (!escape)
+            {
+                if (firstIteration)
+                {
+                    tempByte = ReadByte(ref file);
+                    lastTempByte = tempByte;
+                    firstIteration = false;
+                }
+                else 
+                {
+                    tempByte = ReadByte(ref file);
+
+                    if(lastTempByte == 0 && tempByte != 0)
+                    {
+                        //Go back one byte
+                        file.Position--;
+                        break;
+                    }
+                }
+                lastTempByte = tempByte;
+            }
+        }
+        
     }
 
     public static WorldObjects ReadObjects(FileStream file, int objectCount, int lastPosition)
@@ -258,13 +386,14 @@ public class datreader
         return temp;
     }
 
+
     /// <summary>
     /// Read the World Extents from the .DAT file
     /// </summary>
     /// <param name="file"></param>
     /// <param name="lastPosition"></param>
     /// <returns></returns>
-    public static WorldExtents ReadWorldExtents(FileStream file, int lastPosition)
+    public static WorldExtents ReadWorldExtents(ref FileStream file, int lastPosition)
     {
         int tempunk = ReadInt(ref file);
         LTVector temp1 = ReadLTVector(ref file);
@@ -314,7 +443,7 @@ public class datreader
         y = BitConverter.ToSingle(tempByte, sizeof(Single));
         z = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single));
 
-        return new LTVector(new LTFloat(x), new LTFloat(y), new LTFloat(z));
+        return new LTVector((LTFloat)x, (LTFloat)y, (LTFloat)z);
     }
 
     /// <summary>
@@ -339,7 +468,7 @@ public class datreader
         z = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single));
         w = BitConverter.ToSingle(tempByte, sizeof(Single) + sizeof(Single) + sizeof(Single));
 
-        return new LTRotation(new LTFloat(x), new LTFloat(y), new LTFloat(z), new LTFloat(w));
+        return new LTRotation((LTFloat)x, (LTFloat)y, (LTFloat)z, (LTFloat)w);
     }
 
     /// <summary>
@@ -418,5 +547,10 @@ public class datreader
         byte[] tempByte = new byte[4];
         file.Read(tempByte, 0, tempByte.Length);
         return BitConverter.ToInt32(tempByte, 0);
+    }
+
+    private static byte ReadByte(ref FileStream file)
+    {
+        return (byte)file.ReadByte();
     }
 }
