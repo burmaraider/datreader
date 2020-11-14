@@ -94,7 +94,7 @@ public class datreader
             nChildren = nCurOffset;
             nCurOffset = nCurOffset + 4;
 
-            for(int i = 0; i < 4 ; i++)
+            for(int i = 0; i < 3 ; i++)
             {
                 GetChild(i).pParent = this;
             }
@@ -117,9 +117,14 @@ public class datreader
 
 
         }
-       public void LoadLayout(ref FileStream file, ref byte nCurByte, ref byte nCurBit, List<WorldTreeNode> pNodeList, ref Int32 nCurOffset)
+       public void LoadLayout(ref FileStream file, byte nCurByte, byte nCurBit, ref List<WorldTreeNode> pNodeList, ref Int32 nCurOffset)
         {
             bool bSubdivide;
+
+            if(nCurOffset >> 3 >= 8)
+            {
+                nCurBit = 8;
+            }
 
             if(nCurBit == 8)
             {
@@ -130,14 +135,23 @@ public class datreader
             bSubdivide = (nCurByte & (1 << nCurBit)) > 0;
             nCurBit++;
 
-            if(bSubdivide)
+            if (bSubdivide)
             {
                 Subdivide(ref pNodeList, ref nCurOffset);
 
-                for(int i = 0; 0 < 4; i++)
+                /*
+                for(int i = 0; i < 3; i++)
                 {
-                    GetChild(i).LoadLayout(ref file, ref nCurByte, ref nCurBit, pNodeList, ref nCurOffset);
+                    GetChild(i).LoadLayout(ref file, nCurByte, nCurBit, ref pNodeList, ref nCurOffset);
                 }
+                */
+                for (int i = 0; i < 3; i++)
+                {
+                    GetChild(i).LoadLayout(ref file, nCurByte, nCurBit, ref pNodeList, ref nCurOffset);
+
+                }
+
+
             }
         }
 
@@ -196,7 +210,9 @@ public class datreader
 
             nCurOffset = 0;
 
-            pRootNode.LoadLayout(ref file, ref nCurByte, ref nCurBit, pNodes, ref nCurOffset);
+            List<WorldTreeNode> temp = pNodes;
+            pNodes.Add(new WorldTreeNode());
+            pRootNode.LoadLayout(ref file, nCurByte, nCurBit, ref temp, ref nCurOffset);
 
             return new WorldTreeNode(pNodes);
         }
@@ -237,7 +253,7 @@ public class datreader
                 {
                     tempByte = ReadByte(ref file);
 
-                    if(lastTempByte == 0 && tempByte != 0)
+                    if(lastTempByte == 0 || lastTempByte == 1 && tempByte != 0)
                     {
                         //Go back one byte
                         file.Position--;

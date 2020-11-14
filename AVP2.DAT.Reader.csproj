@@ -190,6 +190,7 @@
     <Compile Include="Classes\datreader.cs" />
     <Compile Include="Classes\LTTypes.cs" />
     <Compile Include="Classes\World.cs" />
+    <Compile Include="Classes\WorldTree.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>

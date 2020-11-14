@@ -331,11 +331,18 @@ namespace AVP2.DAT.Reader
                     //if(header.nVersion != 50 || header.nVersion != 56)
                     datreader.WorldTree worldTree = new datreader.WorldTree();
 
-                    //worldTree.ReadWorldTree(fs);
-                    worldNodeTree = worldTree.ReadWorldTree(ref fs);
-                    //worldNodeTree = datreader.worldTree.ReadWorldTree(fs);
+                    //worldNodeTree = worldTree.ReadWorldTree(ref fs);
 
-                    //datreader.SkipWorldTree(ref fs);
+                    //Since I can't figure out the WorldTree, lets just skip it all!
+                    datreader.SkipWorldTree(ref fs);
+
+                    if (fs.ReadByte() != 0)
+                    {
+                        fs.Position--;
+                    }
+                        
+
+                    richTextBox1.Text += "\n World Data Position: " + fs.Position.ToString();
 
                     //Read objects
                     fs.Position = header.ObjectDataPos;
